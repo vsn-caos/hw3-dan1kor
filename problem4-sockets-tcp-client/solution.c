@@ -4,30 +4,47 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 
-// Программе передаются два аргумента:
-//   argv[1] — IPv4-адрес сервера в десятичной записи (например, "127.0.0.1")
-//   argv[2] — номер порта
-//
-// Программа должна:
-//   1. Установить TCP-соединение с указанным сервером.
-//   2. В цикле читать со stdin целые знаковые числа в текстовом формате.
-//   3. Отправлять каждое число на сервер в бинарном виде (int32, Little Endian).
-//   4. Получать от сервера int32 LE в ответ и выводить его в stdout в текстовом виде.
-//   5. Если сервер закрыл соединение — завершиться с кодом возврата 0.
 
 int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <ipv4_addr> <port>\n", argv[0]);
-        return 1;
+    char *ip = argv[1];
+    int port = atoi(argv[2]);
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    inet_pton(AF_INET, ip, &addr.sin_addr);
+    connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+
+    int x;
+
+    while (scanf("%d", &x) == 1) {
+        unsigned char buf[4];
+        buf[0] = x & 0xFF;
+        buf[1] = (x >> 8) & 0xFF;
+        buf[2] = (x >> 16) & 0xFF;
+        buf[3] = (x >> 24) & 0xFF;
+
+        send(sock, buf, 4, 0);
+
+        unsigned char ans[4];
+        int r = recv(sock, ans, 4, 0);
+
+        if (r <= 0) {
+            break;
+        }
+
+        int y =
+            ans[0] |
+            (ans[1] << 8) |
+            (ans[2] << 16) |
+            (ans[3] << 24);
+
+        printf("%d\n", y);
     }
 
-    // TODO: создайте TCP-сокет (AF_INET, SOCK_STREAM),
-    //       заполните struct sockaddr_in с помощью inet_aton/inet_pton,
-    //       подключитесь через connect,
-    //       реализуйте цикл чтения/отправки/приёма/вывода чисел.
-    //       Порядок байт — Little Endian (на x86/x86_64 это нативный порядок).
-
+    close(sock);
     return 0;
 }
